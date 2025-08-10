@@ -35,7 +35,7 @@ curl_setopt_array($ch, [
   CURLOPT_FOLLOWLOCATION => true,
   CURLOPT_HEADER => true,
   CURLOPT_HTTPHEADER => [
-    'User-Agent: GoManga-Reader/1.0 (+http://localhost/manga)'
+    'User-Agent: GoManga-Reader/1.0 (+http://qrovic.github.io/manga)'
   ],
   CURLOPT_TIMEOUT => 30,
 ]);
