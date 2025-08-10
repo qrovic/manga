@@ -212,8 +212,9 @@
     setLoading('Loading manga...');
     await ensureGenres();
     try {
-      const data = await fetchJSON(`${API_BASE}/api/manga/${id}`);
-      const progress = getProgress(id);
+      const decodedId = decodeURIComponent(id || '');
+      const data = await fetchJSON(`${API_BASE}/api/manga/${decodedId}`);
+      const progress = getProgress(decodedId);
       const bookmarked = isBookmarked(id);
       const chips = (data.genres||[]).map(g => `<span class="chip">${escapeHtml(g)}</span>`).join('');
       const chapters = (data.chapters||[]).map(ch => {
@@ -233,7 +234,7 @@
             <div class="section-title">${escapeHtml(data.title)}</div>
             <div class="meta">By ${escapeHtml(data.author || 'Unknown')} • ${escapeHtml(data.status || '')}</div>
             <div class="meta">Updated: ${escapeHtml(data.lastUpdated || '')} • Views: ${escapeHtml(data.views || '')}</div>
-            ${progress ? `<div class="meta">Last read: Chapter ${escapeHtml(progress.chapterId)}</div>` : ''}
+             ${progress ? `<div class="meta">Last read: Chapter ${escapeHtml(progress.chapterId)}</div>` : ''}
             <div class="chips">${chips}</div>
             <div class="section-title" style="margin-top:10px;">Chapters</div>
             <div class="chapters">${chapters}</div>
@@ -245,12 +246,12 @@
       const btn = document.getElementById('bookmark-toggle');
       if (btn) {
         btn.addEventListener('click', () => {
-          if (isBookmarked(id)) {
-            removeBookmark(id);
+          if (isBookmarked(decodedId)) {
+            removeBookmark(decodedId);
             btn.classList.remove('primary');
             btn.textContent = 'Bookmark';
           } else {
-            setBookmark(id, '', data.title, data.imageUrl);
+            setBookmark(decodedId, '', data.title, data.imageUrl);
             btn.classList.add('primary');
             btn.textContent = 'Bookmarked';
           }
@@ -262,9 +263,11 @@
   async function renderReader(id, chapter){
     setLoading('Loading chapter...');
     try {
+      const decodedId = decodeURIComponent(id || '');
+      const decodedChapter = decodeURIComponent(chapter || '');
       const [imgs, detail] = await Promise.all([
-        fetchJSON(`${API_BASE}/api/manga/${id}/${chapter}`),
-        fetchJSON(`${API_BASE}/api/manga/${id}`)
+        fetchJSON(`${API_BASE}/api/manga/${decodedId}/${decodedChapter}`),
+        fetchJSON(`${API_BASE}/api/manga/${decodedId}`)
       ]);
 
       const images = (imgs.imageUrls||[]).map(src => `<img loading="lazy" src="${src}" alt="page"/>`).join('');
@@ -276,16 +279,16 @@
       const next = idx > 0 ? chs[idx-1].chapterId : null;
 
       // Save reading progress automatically
-      setProgress(id, chapter, detail.title, detail.imageUrl);
+      setProgress(decodedId, decodedChapter, detail.title, detail.imageUrl);
 
       appEl.innerHTML = `
         <div class="reader">
           <div class="reader-toolbar">
-            <a class="button" href="#/manga/${encodeURIComponent(id)}">Chapters</a>
+            <a class="button" href="#/manga/${encodeURIComponent(decodedId)}">Chapters</a>
             <button class="button" onclick="history.back()">Back</button>
             <div style="flex:1"></div>
             <button class="button" ${prev ? '' : 'disabled'} onclick="location.hash='#/read/${encodeURIComponent(id)}/${encodeURIComponent(prev)}'">Prev</button>
-            <div class="page">Ch ${escapeHtml(chapter)}</div>
+            <div class="page">Ch ${escapeHtml(decodedChapter)}</div>
             <button class="button" ${next ? '' : 'disabled'} onclick="location.hash='#/read/${encodeURIComponent(id)}/${encodeURIComponent(next)}'">Next</button>
           </div>
           ${images}
