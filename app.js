@@ -177,12 +177,35 @@
     } catch (e) { setError(e); }
   }
 
+  async function renderBookmarks(){
+    setLoading('Loading bookmarks...');
+    await ensureGenres();
+    try {
+      const bookmarksMap = loadStorageMap(STORAGE_KEYS.bookmarks);
+      const entries = Object.entries(bookmarksMap);
+      const cards = entries.map(([mangaId, meta]) => {
+        const progress = getProgress(mangaId);
+        const desc = progress?.chapterId ? `Continue Ch ${progress.chapterId}` : 'Bookmarked';
+        const item = { id: mangaId, title: meta.title || mangaId, imageUrl: meta.cover || '', description: desc };
+        return gridCard(item);
+      }).join('');
+      appEl.innerHTML = `
+        <div class="toolbar">
+          <div class="section-title">Bookmarks</div>
+          <a class="button" href="#/">Home</a>
+        </div>
+        <div class="grid">${cards || '<div class="loading">No bookmarks</div>'}</div>
+      `;
+    } catch (e) { setError(e); }
+  }
+
   async function renderManga(id){
     setLoading('Loading manga...');
     await ensureGenres();
     try {
       const data = await fetchJSON(`${API_BASE}/api/manga/${id}`);
       const progress = getProgress(id);
+      const bookmarked = isBookmarked(id);
       const chips = (data.genres||[]).map(g => `<span class="chip">${escapeHtml(g)}</span>`).join('');
       const chapters = (data.chapters||[]).map(ch => {
         const chId = ch.chapterId;
@@ -192,6 +215,7 @@
         <div class="toolbar">
           <button class="button" onclick="history.back()">Back</button>
           <a class="button" href="#/">Home</a>
+          <button id="bookmark-toggle" class="button ${bookmarked ? 'primary' : ''}">${bookmarked ? 'Bookmarked' : 'Bookmark'}</button>
           ${progress ? `<a class="button primary" href="#/read/${encodeURIComponent(id)}/${encodeURIComponent(progress.chapterId)}">Continue Ch ${escapeHtml(progress.chapterId)}</a>` : ''}
         </div>
         <div class="detail">
@@ -207,6 +231,22 @@
           </div>
         </div>
       `;
+
+      // Wire bookmark toggle on manga detail
+      const btn = document.getElementById('bookmark-toggle');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          if (isBookmarked(id)) {
+            removeBookmark(id);
+            btn.classList.remove('primary');
+            btn.textContent = 'Bookmark';
+          } else {
+            setBookmark(id, '', data.title, data.imageUrl);
+            btn.classList.add('primary');
+            btn.textContent = 'Bookmarked';
+          }
+        });
+      }
     } catch (e) { setError(e); }
   }
 
@@ -228,7 +268,6 @@
 
       // Save reading progress automatically
       setProgress(id, chapter, detail.title, detail.imageUrl);
-      const bookmarked = isBookmarked(id);
 
       appEl.innerHTML = `
         <div class="reader">
@@ -236,7 +275,6 @@
             <a class="button" href="#/manga/${encodeURIComponent(id)}">Chapters</a>
             <button class="button" onclick="history.back()">Back</button>
             <div style="flex:1"></div>
-            <button id="bookmark-btn" class="button ${bookmarked ? 'primary' : ''}">${bookmarked ? 'Bookmarked' : 'Bookmark'}</button>
             <button class="button" ${prev ? '' : 'disabled'} onclick="location.hash='#/read/${encodeURIComponent(id)}/${encodeURIComponent(prev)}'">Prev</button>
             <div class="page">Ch ${escapeHtml(chapter)}</div>
             <button class="button" ${next ? '' : 'disabled'} onclick="location.hash='#/read/${encodeURIComponent(id)}/${encodeURIComponent(next)}'">Next</button>
@@ -248,21 +286,6 @@
       // Smooth scroll top on chapter load
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      // Wire bookmark toggle
-      const bookmarkBtn = document.getElementById('bookmark-btn');
-      if (bookmarkBtn) {
-        bookmarkBtn.addEventListener('click', () => {
-          if (isBookmarked(id)) {
-            removeBookmark(id);
-            bookmarkBtn.classList.remove('primary');
-            bookmarkBtn.textContent = 'Bookmark';
-          } else {
-            setBookmark(id, chapter, detail.title, detail.imageUrl);
-            bookmarkBtn.classList.add('primary');
-            bookmarkBtn.textContent = 'Bookmarked';
-          }
-        });
-      }
     } catch (e) { setError(e); }
   }
 
@@ -277,6 +300,7 @@
     if (parts[0] === 'genre') return { route: 'genre', params: [parts[1] || '', Number(parts[2]||'1')] };
     if (parts[0] === 'manga') return { route: 'manga', params: [parts[1]] };
     if (parts[0] === 'read') return { route: 'read', params: [parts[1], parts[2]] };
+    if (parts[0] === 'bookmarks') return { route: 'bookmarks', params: [] };
     return { route: 'home', params: [] };
   }
 
@@ -296,6 +320,8 @@
           return renderManga(params[0]);
         case 'read':
           return renderReader(params[0], params[1]);
+        case 'bookmarks':
+          return renderBookmarks();
         default:
           return renderHome(1);
       }
