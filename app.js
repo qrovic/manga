@@ -32,7 +32,7 @@
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await fetch(resource, { ...rest, signal: controller.signal, mode: 'cors', credentials: 'omit', cache: 'no-store' });
+      return await fetch(resource, { ...rest, signal: controller.signal, mode: 'cors', credentials: 'omit', cache: 'default', headers: { Accept: 'application/json', ...(rest.headers||{}) } });
     } finally {
       clearTimeout(id);
     }
@@ -173,7 +173,7 @@
 
   async function renderHome(page=1){
     setLoading('Loading latest...');
-    await ensureGenres();
+    ensureGenres();
     try {
       const data = await fetchJSON(`${API_BASE}/api/manga-list/${page}`);
       const grid = (data.data || []).map(gridCard).join('');
@@ -194,7 +194,7 @@
 
   async function renderSearch(q){
     setLoading('Searching...');
-    await ensureGenres();
+    ensureGenres();
     try {
       const data = await fetchJSON(`${API_BASE}/api/search/${encodeURIComponent(q)}`);
       const results = (data.manga || []).map(gridCard).join('');
@@ -210,7 +210,7 @@
 
   async function renderGenre(slug, page=1){
     setLoading('Loading genre...');
-    await ensureGenres();
+    ensureGenres();
     try {
       const data = await fetchJSON(`${API_BASE}/api/genre/${encodeURIComponent(slug)}/${page}`);
       const items = (data.manga || []).map(gridCard).join('');
@@ -231,7 +231,7 @@
 
   async function renderBookmarks(){
     setLoading('Loading bookmarks...');
-    await ensureGenres();
+    ensureGenres();
     try {
       const bookmarksMap = loadStorageMap(STORAGE_KEYS.bookmarks);
       const entries = Object.entries(bookmarksMap);
@@ -253,7 +253,7 @@
 
   async function renderManga(id){
     setLoading('Loading manga...');
-    await ensureGenres();
+    ensureGenres();
     try {
       const decodedId = decodeURIComponent(id || '');
       const data = await fetchJSON(`${API_BASE}/api/manga/${decodedId}`);
@@ -313,7 +313,7 @@
         fetchJSON(`${API_BASE}/api/manga/${decodedId}`)
       ]);
 
-      const images = (imgs.imageUrls||[]).map(src => `<img loading="lazy" src="${src}" alt="page"/>`).join('');
+      const imageUrls = imgs.imageUrls || [];
 
       // compute prev/next
       const chs = (detail.chapters||[]);
@@ -334,14 +334,89 @@
             <div class="page">Ch ${escapeHtml(decodedChapter)}</div>
             <button class="button" ${next ? '' : 'disabled'} onclick="location.hash='#/read/${encodeURIComponent(id)}/${encodeURIComponent(next)}'">Next</button>
           </div>
-          ${images}
+          <div id="reader-images" class="reader-images"></div>
+          <div id="reader-sentinel" class="reader-sentinel" aria-hidden="true"></div>
         </div>
       `;
 
       // Smooth scroll top on chapter load
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
+      // Incremental image appending: load first, then progressively append more as you scroll
+      setupIncrementalReaderImages(imageUrls);
+
     } catch (e) { setError(e); }
+  }
+
+  function activateLazyImages(){
+    const imgs = document.querySelectorAll('.reader img[data-src]');
+    if (!imgs.length) return;
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target;
+            img.src = img.getAttribute('data-src');
+            img.removeAttribute('data-src');
+            obs.unobserve(img);
+          }
+        });
+      }, { root: null, rootMargin: '200px 0px', threshold: 0.01 });
+      imgs.forEach(img => io.observe(img));
+    } else {
+      imgs.forEach(img => {
+        img.src = img.getAttribute('data-src');
+        img.removeAttribute('data-src');
+      });
+    }
+  }
+
+  function setupIncrementalReaderImages(imageUrls){
+    const container = document.getElementById('reader-images');
+    const sentinel = document.getElementById('reader-sentinel');
+    if (!container) return;
+
+    let currentIndex = 0;
+    const isMobile = window.matchMedia('(max-width: 640px)').matches;
+    const batchSize = isMobile ? 2 : 4;
+
+    function appendNextBatch(){
+      if (currentIndex >= imageUrls.length) return;
+      const end = Math.min(currentIndex + batchSize, imageUrls.length);
+      for (let i = currentIndex; i < end; i++){
+        const img = document.createElement('img');
+        img.setAttribute('loading', 'lazy');
+        img.setAttribute('decoding', 'async');
+        img.setAttribute('data-src', imageUrls[i]);
+        img.setAttribute('alt', 'page');
+        container.appendChild(img);
+      }
+      currentIndex = end;
+      // Kick lazy loader for any newly added images
+      activateLazyImages();
+    }
+
+    appendNextBatch();
+
+    if ('IntersectionObserver' in window && sentinel){
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            appendNextBatch();
+            if (currentIndex >= imageUrls.length) io.disconnect();
+          }
+        });
+      }, { root: null, rootMargin: '300px 0px', threshold: 0 });
+      io.observe(sentinel);
+    } else {
+      // Fallback: on scroll near bottom, append more
+      const onScroll = () => {
+        const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 600;
+        if (nearBottom) appendNextBatch();
+        if (currentIndex >= imageUrls.length) window.removeEventListener('scroll', onScroll);
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+    }
   }
 
   // Router
@@ -403,8 +478,8 @@
 
   // Init
   (async function init(){
-    await ensureGenres();
-     updateHeaderOffset();
+    ensureGenres();
+    updateHeaderOffset();
     if (!location.hash) location.hash = '#/';
     route();
   })();

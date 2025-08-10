@@ -53,6 +53,8 @@ a:hover { text-decoration: underline; }
 .reader { display:flex; flex-direction:column; gap:8px; }
 .reader .reader-toolbar { position: sticky; top: var(--header-offset); z-index:5; display:flex; gap:8px; padding:8px; background: rgba(15,17,21,0.9); border:1px solid var(--border); border-radius:10px; }
 .reader img { width: 100%; height: auto; border-radius: 8px; background:#0b0d12; }
+.reader-images { display: flex; flex-direction: column; gap: 8px; }
+.reader-sentinel { width: 100%; height: 1px; }
 @media (max-width: 640px) {
   /* Make reader controls float at the bottom on mobile */
   .reader { padding-bottom: 90px; }
