@@ -67,10 +67,12 @@ a:hover { text-decoration: underline; }
 /* Mobile header layout */
 @media (max-width: 640px) {
   .site-header { flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
-  .brand { font-size: 16px; }
-  .search-form { order: 3; width: 100%; }
-  .genre-select-wrap { order: 2; flex: 1; min-width: 140px; }
-  .site-header > .button { order: 4; margin-left: auto; }
+  .brand { font-size: 16px; order: 1; width: 100%; }
+  /* Row 2: Genre + Bookmarks side-by-side */
+  .genre-select-wrap { order: 2; flex: 1 1 48%; min-width: 0; }
+  .site-header > .button { order: 3; flex: 1 1 48%; margin-left: 0; text-align: center; }
+  /* Row 3: Search alone full width */
+  .search-form { order: 4; width: 100%; }
   .section-title { font-size: 18px; }
   .app { padding: 14px 12px; }
   .button, .pager button { padding: 10px 12px; }
