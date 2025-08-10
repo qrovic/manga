@@ -43,7 +43,8 @@
   }
   function setBookmark(mangaId, chapterId, title, cover){
     const map = loadStorageMap(STORAGE_KEYS.bookmarks);
-    map[mangaId] = { chapterId: String(chapterId), title: title || '', cover: cover || '', time: Date.now() };
+    const normalizedChapterId = (chapterId === undefined || chapterId === null) ? '' : String(chapterId);
+    map[mangaId] = { chapterId: normalizedChapterId, title: title || '', cover: cover || '', time: Date.now() };
     saveStorageMap(STORAGE_KEYS.bookmarks, map);
   }
   function removeBookmark(mangaId){
