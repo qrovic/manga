@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rui Manga</title>
+  <link rel="icon" type="image/jpeg" href="rui.jpg" />
+  <link rel="apple-touch-icon" href="rui.jpg" />
+  <meta property="og:image" content="rui.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="rui.jpg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand" onclick="window.location.hash='/'">
+      <img class="brand-logo" src="rui.jpg" alt="Rui Manga" onerror="this.style.display='none'" />
+      <span>Rui Manga</span>
+    </div>
+    <form id="search-form" class="search-form">
+      <input id="search-input" type="search" placeholder="Search manga..." aria-label="Search manga" />
+      <button type="submit">Search</button>
+    </form>
+    <div class="genre-select-wrap">
+      <select id="genre-select" aria-label="Select genre">
+        <option value="">Genres</option>
+      </select>
+    </div>
+  </header>
+
+  <main id="app" class="app">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>Loading...</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>Powered by <a href="https://ph.linkedin.com/in/rouel-quilantang-05819825b" target="_blank" rel="noopener noreferrer">Rui</a></span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
