@@ -8,6 +8,15 @@
   // Always call the API directly (no PHP proxy; suitable for GitHub Pages)
   const viaProxy = (url) => url;
 
+  // Ensure sticky toolbars sit below the header height
+  function updateHeaderOffset(){
+    const header = document.querySelector('.site-header');
+    if (!header) return;
+    const headerHeight = Math.ceil(header.getBoundingClientRect().height);
+    const offsetPx = Math.max(0, headerHeight + 8); // small spacing
+    document.documentElement.style.setProperty('--header-offset', offsetPx + 'px');
+  }
+
   function buildCorsFallbackUrls(url){
     // Try direct first, then a couple of public CORS proxies as a last resort
     // Note: Public proxies can be unreliable; this is only to make Pages work without server code
@@ -155,6 +164,8 @@
         return `<option value="${slug}">${escapeHtml(g)}</option>`;
       }));
       genreSelect.innerHTML = opts.join('');
+      // Header height may change when select is populated
+      updateHeaderOffset();
     } catch (e) {
       console.warn('Failed to load genres', e);
     }
@@ -387,10 +398,13 @@
   });
 
   window.addEventListener('hashchange', route);
+  window.addEventListener('resize', updateHeaderOffset);
+  window.addEventListener('load', updateHeaderOffset);
 
   // Init
   (async function init(){
     await ensureGenres();
+     updateHeaderOffset();
     if (!location.hash) location.hash = '#/';
     route();
   })();
