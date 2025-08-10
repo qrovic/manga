@@ -5,7 +5,10 @@
   const genreSelect = document.getElementById('genre-select');
 
   const API_BASE = 'https://gomanga-api.vercel.app';
-  const viaProxy = (url) => `./proxy.php?url=${encodeURIComponent(url)}`;
+  // On GitHub Pages (static hosting), PHP won't run. Call API directly there.
+  // Use the PHP proxy only when we're not on GitHub Pages (e.g., local XAMPP).
+  const isGitHubPages = /\.github\.io$/.test(location.hostname);
+  const viaProxy = (url) => (isGitHubPages ? url : `./proxy.php?url=${encodeURIComponent(url)}`);
 
   const state = {
     genres: [],
@@ -62,18 +65,24 @@
   }
 
   async function fetchJSON(url){
-    try {
-      const key = `json:${url}`;
-      if (state.cache.has(key)) return state.cache.get(key);
-      const res = await fetch(viaProxy(url));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      state.cache.set(key, data);
-      return data;
-    } catch (err) {
-      console.error('fetchJSON error', url, err);
-      throw err;
+    const key = `json:${url}`;
+    if (state.cache.has(key)) return state.cache.get(key);
+    const primary = viaProxy(url);
+    const fallback = primary === url ? `./proxy.php?url=${encodeURIComponent(url)}` : url;
+    let lastError = null;
+    for (const attemptUrl of [primary, fallback]){
+      try {
+        const res = await fetch(attemptUrl);
+        if (!res.ok) { lastError = new Error(`HTTP ${res.status}`); continue; }
+        const data = await res.json();
+        state.cache.set(key, data);
+        return data;
+      } catch (err) {
+        lastError = err;
+      }
     }
+    console.error('fetchJSON error', url, lastError);
+    throw lastError || new Error('Request failed');
   }
 
   function setLoading(message='Loading...'){
