@@ -8,6 +8,27 @@
   // Always call the API directly (no PHP proxy; suitable for GitHub Pages)
   const viaProxy = (url) => url;
 
+  function buildCorsFallbackUrls(url){
+    // Try direct first, then a couple of public CORS proxies as a last resort
+    // Note: Public proxies can be unreliable; this is only to make Pages work without server code
+    return [
+      url,
+      `https://cors.isomorphic-git.org/${url}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    ];
+  }
+
+  async function fetchWithTimeout(resource, options={}){
+    const { timeoutMs = 12000, ...rest } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(resource, { ...rest, signal: controller.signal, mode: 'cors', credentials: 'omit', cache: 'no-store' });
+    } finally {
+      clearTimeout(id);
+    }
+  }
+
   const state = {
     genres: [],
     cache: new Map(), // url -> data
@@ -65,12 +86,35 @@
   async function fetchJSON(url){
     const key = `json:${url}`;
     if (state.cache.has(key)) return state.cache.get(key);
-    const attemptUrl = viaProxy(url);
-    const res = await fetch(attemptUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    state.cache.set(key, data);
-    return data;
+    const candidates = buildCorsFallbackUrls(viaProxy(url));
+    let lastError = null;
+    for (const attemptUrl of candidates){
+      try {
+        const res = await fetchWithTimeout(attemptUrl, { timeoutMs: 15000 });
+        if (!res.ok) { lastError = new Error(`HTTP ${res.status}`); continue; }
+        // Try to parse JSON; if content-type is wrong, still attempt JSON, fallback to text->JSON
+        try {
+          const data = await res.json();
+          state.cache.set(key, data);
+          return data;
+        } catch (parseErr) {
+          const text = await res.text();
+          try {
+            const data = JSON.parse(text);
+            state.cache.set(key, data);
+            return data;
+          } catch {
+            lastError = new Error('Invalid JSON from API');
+            continue;
+          }
+        }
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+    }
+    console.error('fetchJSON error', url, lastError);
+    throw lastError || new Error('Request failed');
   }
 
   function setLoading(message='Loading...'){
@@ -203,7 +247,7 @@
       const decodedId = decodeURIComponent(id || '');
       const data = await fetchJSON(`${API_BASE}/api/manga/${decodedId}`);
       const progress = getProgress(decodedId);
-      const bookmarked = isBookmarked(id);
+      const bookmarked = isBookmarked(decodedId);
       const chips = (data.genres||[]).map(g => `<span class="chip">${escapeHtml(g)}</span>`).join('');
       const chapters = (data.chapters||[]).map(ch => {
         const chId = ch.chapterId;
@@ -214,7 +258,7 @@
           <button class="button" onclick="history.back()">Back</button>
           <a class="button" href="#/">Home</a>
           <button id="bookmark-toggle" class="button ${bookmarked ? 'primary' : ''}">${bookmarked ? 'Bookmarked' : 'Bookmark'}</button>
-          ${progress ? `<a class="button primary" href="#/read/${encodeURIComponent(id)}/${encodeURIComponent(progress.chapterId)}">Continue Ch ${escapeHtml(progress.chapterId)}</a>` : ''}
+           ${progress ? `<a class="button primary" href="#/read/${encodeURIComponent(decodedId)}/${encodeURIComponent(progress.chapterId)}">Continue Ch ${escapeHtml(progress.chapterId)}</a>` : ''}
         </div>
         <div class="detail">
           <img class="cover" src="${data.imageUrl || ''}" alt="${escapeHtml(data.title)}"/>
