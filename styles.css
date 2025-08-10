@@ -54,7 +54,20 @@ a:hover { text-decoration: underline; }
 .reader .reader-toolbar { position: sticky; top: var(--header-offset); z-index:5; display:flex; gap:8px; padding:8px; background: rgba(15,17,21,0.9); border:1px solid var(--border); border-radius:10px; }
 .reader img { width: 100%; height: auto; border-radius: 8px; background:#0b0d12; }
 @media (max-width: 640px) {
-  .reader .reader-toolbar { flex-wrap: wrap; justify-content: center; }
+  /* Make reader controls float at the bottom on mobile */
+  .reader { padding-bottom: 90px; }
+  .reader .reader-toolbar {
+    position: fixed;
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 10px);
+    left: 10px;
+    right: 10px;
+    z-index: 1000;
+    flex-wrap: wrap;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  }
 }
 
 .loading { display:flex; align-items:center; justify-content:center; padding: 40px 0; color: var(--muted); }
@@ -66,12 +79,13 @@ a:hover { text-decoration: underline; }
 
 /* Mobile header layout */
 @media (max-width: 640px) {
-  .site-header { flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
-  .brand { font-size: 16px; order: 1; width: 100%; }
-  /* Row 2: Genre + Bookmarks side-by-side */
-  .genre-select-wrap { order: 2; flex: 1 1 48%; min-width: 0; }
-  .site-header > .button { order: 3; flex: 1 1 48%; margin-left: 0; text-align: center; }
-  /* Row 3: Search alone full width */
+  .site-header { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+  /* Row 1: Brand + Genre + Bookmark all on one line */
+  .brand { font-size: 16px; order: 1; flex: 0 1 34%; min-width: 110px; }
+  .brand span { display:inline-block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .genre-select-wrap { order: 2; flex: 1 1 40%; min-width: 0; }
+  .site-header > .button { order: 3; flex: 0 0 auto; margin-left: 0; text-align: center; white-space: nowrap; }
+  /* Row 2: Search alone full width */
   .search-form { order: 4; width: 100%; }
   .section-title { font-size: 18px; }
   .app { padding: 14px 12px; }
